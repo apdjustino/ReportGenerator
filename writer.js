@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import { formatCurrency } from "./utils.js";
+import chalk from "chalk";
 
 export const writeReport = (data) => {
 
