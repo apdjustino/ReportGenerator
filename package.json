@@ -1,0 +1,14 @@
+{
+  "name": "ReportGenerator",
+  "version": "1.0.0",
+  "description": "Generates reports for the Adams County Democratic Party",
+  "main": "index.js",
+  "author": "Justin Martinez <justinmartinez14@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "csv-parse": "^4.15.1",
+    "d3-format": "^2.0.0",
+    "moment": "^2.29.1",
+    "pdfkit": "^0.11.0"
+  }
+}
