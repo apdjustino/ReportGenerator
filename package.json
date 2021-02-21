@@ -5,6 +5,7 @@
   "main": "index.js",
   "author": "Justin Martinez <justinmartinez14@gmail.com>",
   "license": "MIT",
+  "type": "module",
   "dependencies": {
     "csv-parse": "^4.15.1",
     "d3-format": "^2.0.0",
