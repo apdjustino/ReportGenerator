@@ -6,6 +6,12 @@ import { sortBy } from "./utils.js";
 
 export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
     let bankData = null;
+    const specialAccounts = {
+        latino: 0,
+        hd35: 0,
+        young: 0,
+        hd34: 0
+    };
     try {
         bankData = fs.readFileSync(bankCsvPath, 'utf-8');
     } catch (error) {
@@ -80,6 +86,8 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
             Amount: deposit.Amount,
             Address: deposit.Address,
             Occupation: deposit.Occupation,
+            Latino: deposit.Description.toLowerCase().includes("latino"),
+            HD35: deposit.Description.toLowerCase().includes("hd35")
         }));
     
         const expenses = bankRecords.filter(r => r.Amount <= 0).map(expense => ({
@@ -103,6 +111,8 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
                 Amount: record.Amount,
                 Address: `${record["Donor Addr1"]} ${record["Donor City"]}, ${record["Donor State"]} ${record["Donor ZIP"]}`,
                 Occupation: record["Donor Occupation"],
+                Latino: isLatino,
+                HD35: isHd35
             });
             
         });

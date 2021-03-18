@@ -116,7 +116,8 @@ export const writeReport = (data) => {
     });
 
     // special accounts
-
+    const latinoBalance = deposits.filter(d => d.Latino).map(d => d.Amount).reduce((a, b) => a + b) + specialRecords[0]["Latino Initiative"];
+    const hd35Balance = deposits.filter(d => d.HD35).map(d => d.Amount).reduce((a, b) => a + b) + specialRecords[0]["HD 35"];
     doc.font('Times-Roman').fontSize(12).text(`Account Balance as of ${endDate}`, {
         continued: true
     }).font('Times-Bold').text(`${formatCurrency(endingBalance)}`, {
@@ -133,7 +134,7 @@ export const writeReport = (data) => {
 
     doc.font('Times-Roman').fontSize(12).text(`Less: Latino Initiative`, {
         continued: true
-    }).text(`${formatCurrency(specialRecords[0]["Latino Initiative"] * -1)}`, {
+    }).text(`${formatCurrency(latinoBalance * -1)}`, {
         lineGap: 8,
         align: "right"
     });
@@ -147,7 +148,7 @@ export const writeReport = (data) => {
 
     doc.font('Times-Roman').fontSize(12).text(`Less: HD 35`, {
         continued: true
-    }).text(`${formatCurrency(specialRecords[0]["HD 35"] * -1)}`, {
+    }).text(`${formatCurrency(hd35Balance * -1)}`, {
         lineGap: 8,
         align: "right"
     });
