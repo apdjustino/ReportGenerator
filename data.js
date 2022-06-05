@@ -4,11 +4,12 @@ import moment from "moment";
 import chalk from "chalk";
 import { sortBy } from "./utils.js";
 
+import _ from "lodash";
 export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
     let bankData = null;
     const specialAccounts = {
         latino: 0,
-        hd35: 0,
+        hd29: 0,
         young: 0,
         hd34: 0
     };
@@ -59,7 +60,7 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
                     case "Amount":
                         return parseFloat(value);
                     case "Date":
-                        return moment(value);
+                        return moment(value, "M/D/YYYY h:mm:ss A");
                     case "Fee":
                         return parseFloat(value);
                     default:
@@ -79,49 +80,72 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
                 
             }
         });
+
+        // Adds list of expenses for bank records
     
         const deposits = bankRecords.filter(r => r.Amount >= 0).map(deposit => ({
-            Date: deposit.Date,
+            rawDate: deposit.Date,
+            Date: deposit.Date.format("MM/DD"),
             Description: `${deposit.Description} - ${deposit.Type}`,
             Amount: deposit.Amount,
             Address: deposit.Address,
             Occupation: deposit.Occupation,
             Latino: deposit.Description.toLowerCase().includes("latino"),
-            HD35: deposit.Description.toLowerCase().includes("hd35")
+            HD29: deposit.Description.toLowerCase().includes("hd29")
         }));
     
-        const expenses = bankRecords.filter(r => r.Amount <= 0).map(expense => ({
-            Date: expense.Date,
+        const bankExpenses = bankRecords.filter(r => r.Amount <= 0).map(expense => ({
+            rawDate: expense.Date,
+            Date: expense.Date.format("MM/DD"),
             Description: expense.Description,
             Amount: expense.Amount,
+            Latino: expense.Description.toLowerCase().includes("latino"),
+            HD29: expense.Description.toLowerCase().includes("hd29")
         }));
     
+        // This block of code groups act blue fees by date. This makes it much easier to input these fees into TRACER
+        const fees = []
+        const groupedFees = _.groupBy(actBlueRecords.map(x => ({rawDate: x.Date, "Date": x.Date.format("MM/DD"), "Fee": x.Fee})), "Date")
+        Object.keys(groupedFees).forEach((date) => {        
+          const record = groupedFees[date];
+          const expenseObject = { rawDate: record[0].rawDate, "Date": date, "Description": "Act Blue Fee" }
+          const amount = record.reduce((pv, cv) => {
+            return pv + cv.Fee
+          }, 0)
+
+          expenseObject["Amount"] = amount * -1;
+          fees.push(expenseObject);
+        });
+        
         actBlueRecords.forEach(record => {
             const isLatino = record["Fundraising Page"].includes("latinoinitiative");
-            const isHd35 = record["Fundraising Page"].includes("hd35");
-            expenses.push({
-                Date: record.Date,
-                Description: "ActBlue Fee",
-                Amount: record.Fee * -1
-            });
+            const isHd29 = record["Fundraising Page"].includes("hd29") || record["Fundraising Page"].includes("westminsterdemstshirts");
+                        
 
             deposits.push({
-                Date: record.Date,
-                Description: `${record["Donor First Name"]} ${record["Donor Last Name"]} - ActBlue ${isLatino ? "(Latino Initiative)" : isHd35 ? "(HD35)" : ""}`,
+                rawDate: record.Date,
+                Date: record.Date.format("MM/DD"),
+                Description: `${record["Donor First Name"]} ${record["Donor Last Name"]} - ActBlue ${isLatino ? "(Latino Initiative)" : isHd29 ? "(HD29)" : ""}`,
                 Amount: record.Amount,
                 Address: `${record["Donor Addr1"]} ${record["Donor City"]}, ${record["Donor State"]} ${record["Donor ZIP"]}`,
                 Occupation: record["Donor Occupation"],
                 Latino: isLatino,
-                HD35: isHd35
+                HD29: isHd29
             });
             
         });
+
+        const expenses = [...bankExpenses, ...fees]
     
         expenses.sort(sortBy("Date"));
         deposits.sort(sortBy("Date"));
-
-        const earliestRecord = bankRecords.map(r => r.Date).reduce((a, b) => a <= b ? a : b);
-        const latestRecord = deposits.map(r => r.Date).reduce((a, b) => a >= b ? a : b);
+        
+        // create a combined array of deposits and expenses to find the earliest and latest records
+        const allRecords = [...deposits, ...expenses]
+        console.log(allRecords);
+        
+        const earliestRecord = allRecords.map(r => r.rawDate).reduce((a, b) => a <= b ? a : b);        
+        const latestRecord = allRecords.map(r => r.rawDate).reduce((a, b) => a >= b ? a : b);
         const month = latestRecord.format("MMMM");
         const year = latestRecord.format("YYYY");
         const startDate = earliestRecord.format("MM/DD/YYYY");
@@ -131,7 +155,7 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
         const totalExpenses = expenses.map(r => r.Amount).reduce((a, b) => a + b);
         const startingBalance = bankRecords.find(r => r.Date === earliestRecord)["Posted Balance After Transaction"] + Math.abs(bankRecords.find(r => r.Date === earliestRecord)["Amount"]);
         const endingBalance = startingBalance + totalDeposits + totalExpenses;
-    
+        
         return {
             actBlueRecords,
             bankRecords,

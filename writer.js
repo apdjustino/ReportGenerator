@@ -3,7 +3,7 @@ import fs from "fs";
 import { formatCurrency } from "./utils.js";
 import chalk from "chalk";
 
-export const writeReport = (data) => {
+export const writeReport = (data, o) => {
 
     const {
         actBlueRecords,
@@ -24,7 +24,7 @@ export const writeReport = (data) => {
     const doc = new PDFDocument();
 
     //title and header
-    const title = `Adams County Democrats ${month} ${year} Finance Report`
+    const title = o || `Adams County Democrats ${month} ${year} Finance Report`
     doc.pipe(fs.createWriteStream(`./reports/${title}.pdf`));
 
     doc.font('Times-Roman');
@@ -69,8 +69,8 @@ export const writeReport = (data) => {
         underline: true,
     });
 
-    expenses.forEach(expense => {
-        doc.font('Times-Roman').fontSize(10).text(`${expense.Date.format("MM/DD")} ${expense.Description}`, {
+    expenses.forEach(expense => {        
+        doc.font('Times-Roman').fontSize(10).text(`${expense.Date} ${expense.Description}`, {
             indent: 36,
             continued: true,
         }).text(`${formatCurrency(expense.Amount)}`, {
@@ -94,7 +94,7 @@ export const writeReport = (data) => {
     });
 
     deposits.forEach(deposit => {
-        doc.font('Times-Roman').fontSize(10).text(`${deposit.Date.format("MM/DD")} ${deposit.Description}`, {
+        doc.font('Times-Roman').fontSize(10).text(`${deposit.Date} ${deposit.Description}`, {
             indent: 36,
             continued: true,
         }).text(`${formatCurrency(deposit.Amount)}`, {
@@ -116,8 +116,15 @@ export const writeReport = (data) => {
     });
 
     // special accounts
-    const latinoBalance = deposits.filter(d => d.Latino).map(d => d.Amount).reduce((a, b) => a + b) + specialRecords[0]["Latino Initiative"];
-    const hd35Balance = deposits.filter(d => d.HD35).map(d => d.Amount).reduce((a, b) => a + b) + specialRecords[0]["HD 35"];
+    const latinoDeposits = parseFloat(deposits.filter(d => d.Latino).map(d => d.Amount).reduce((a, b) => a + b, 0)) + parseFloat(specialRecords[0]["Latino Initiative"]);
+    const latinoExpenses = parseFloat(expenses.filter(d => d.Latino).map(d => d.Amount).reduce((a, b) => a + b, 0))
+    const latinoBalance = latinoDeposits + latinoExpenses    
+
+    const hd29Deposits = deposits.filter(d => d.HD29).map(d => d.Amount).reduce((a, b) => a + b) + specialRecords[0]["HD 29"];
+    const h29Expenses = parseFloat(expenses.filter(d => d.HD29).map(d => d.Amount).reduce((a, b) => a + b, 0))
+    const hd29Balance = hd29Deposits + h29Expenses;
+
+    
     doc.font('Times-Roman').fontSize(12).text(`Account Balance as of ${endDate}`, {
         continued: true
     }).font('Times-Bold').text(`${formatCurrency(endingBalance)}`, {
@@ -146,26 +153,18 @@ export const writeReport = (data) => {
         align: "right"
     });
 
-    doc.font('Times-Roman').fontSize(12).text(`Less: HD 35`, {
+    doc.font('Times-Roman').fontSize(12).text(`Less: HD 29`, {
         continued: true
-    }).text(`${formatCurrency(hd35Balance * -1)}`, {
+    }).text(`${formatCurrency(hd29Balance * -1)}`, {
         lineGap: 8,
         align: "right"
     });
 
-    const operatingBalance = endingBalance - specialRecords[0]["Young Dems"] - specialRecords[0]["Latino Initiative"] - specialRecords[0]["HD 34"] - specialRecords[0]["HD 35"];
+    const operatingBalance = endingBalance - specialRecords[0]["Young Dems"] - specialRecords[0]["Latino Initiative"] - specialRecords[0]["HD 34"] - specialRecords[0]["HD 29"];
     doc.font('Times-Bold').fontSize(12).text("OPERATING ACCOUNT BALANCE", {
         align: "center",
         continued: true
     }).text(`${formatCurrency(operatingBalance)}`, {
-        align: "right",
-        lineGap: 8
-    });
-
-    doc.font('Times-Bold').fontSize(12).text("RAFFLE ACCOUNT BALANCE", {
-        align: "center",
-        continued: true
-    }).text(`${formatCurrency(specialRecords[0].Raffle)}`, {
         align: "right",
         lineGap: 8
     });
