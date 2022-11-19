@@ -1,10 +1,11 @@
 import fs from "fs";
 import parse from 'csv-parse/lib/sync.js';
-import moment from "moment";
 import chalk from "chalk";
 import { sortBy } from "./utils.js";
-
+import { parse as parseDate, format } from "date-fns";
 import _ from "lodash";
+
+
 export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
     let bankData = null;
     const specialAccounts = {
@@ -44,7 +45,7 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
                     case "Amount":
                         return parseFloat(value);
                     case "Date":
-                        return moment(value, "M/D/YY");
+                        return parseDate(value, 'M/dd/yy', new Date())
                     case "Posted Balance After Transaction":
                         return parseFloat(value);
                     default: 
@@ -60,7 +61,7 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
                     case "Amount":
                         return parseFloat(value);
                     case "Date":
-                        return moment(value, "M/D/YYYY h:mm:ss A");
+                        return parseDate(value, 'MM/dd/yy H:mm', new Date())
                     case "Fee":
                         return parseFloat(value);
                     default:
@@ -82,21 +83,23 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
         });
 
         // Adds list of expenses for bank records
-    
-        const deposits = bankRecords.filter(r => r.Amount >= 0).map(deposit => ({
-            rawDate: deposit.Date,
-            Date: deposit.Date.format("MM/DD"),
+        
+        const deposits = bankRecords.filter(r => r.Amount >= 0).map(deposit => {        
+          return {
+            rawDate: deposit['Date'],
+            Date: format(deposit.Date, 'MM/dd'),
             Description: `${deposit.Description} - ${deposit.Type}`,
             Amount: deposit.Amount,
             Address: deposit.Address,
             Occupation: deposit.Occupation,
             Latino: deposit.Description.toLowerCase().includes("latino"),
             HD29: deposit.Description.toLowerCase().includes("hd29")
-        }));
+        }
+        });
     
         const bankExpenses = bankRecords.filter(r => r.Amount <= 0).map(expense => ({
             rawDate: expense.Date,
-            Date: expense.Date.format("MM/DD"),
+            Date: format(expense.Date, 'MM/dd'),
             Description: expense.Description,
             Amount: expense.Amount,
             Latino: expense.Description.toLowerCase().includes("latino"),
@@ -105,7 +108,8 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
     
         // This block of code groups act blue fees by date. This makes it much easier to input these fees into TRACER
         const fees = []
-        const groupedFees = _.groupBy(actBlueRecords.map(x => ({rawDate: x.Date, "Date": x.Date.format("MM/DD"), "Fee": x.Fee})), "Date")
+
+        const groupedFees = _.groupBy(actBlueRecords.map(x => ({rawDate: x.Date, "Date": format(x.Date, 'MM/dd'), "Fee": x.Fee})), "Date")
         Object.keys(groupedFees).forEach((date) => {        
           const record = groupedFees[date];
           const expenseObject = { rawDate: record[0].rawDate, "Date": date, "Description": "Act Blue Fee" }
@@ -124,7 +128,7 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
 
             deposits.push({
                 rawDate: record.Date,
-                Date: record.Date.format("MM/DD"),
+                Date: format(record.Date, 'MM/dd'),
                 Description: `${record["Donor First Name"]} ${record["Donor Last Name"]} - ActBlue ${isLatino ? "(Latino Initiative)" : isHd29 ? "(HD29)" : ""}`,
                 Amount: record.Amount,
                 Address: `${record["Donor Addr1"]} ${record["Donor City"]}, ${record["Donor State"]} ${record["Donor ZIP"]}`,
@@ -141,19 +145,19 @@ export const getData = (bankCsvPath, actBlueCsvPath, specialCsvPath) => {
         deposits.sort(sortBy("Date"));
         
         // create a combined array of deposits and expenses to find the earliest and latest records
-        const allRecords = [...deposits, ...expenses]
-        console.log(allRecords);
-        
+        const allRecords = [...deposits, ...expenses]                
         const earliestRecord = allRecords.map(r => r.rawDate).reduce((a, b) => a <= b ? a : b);        
         const latestRecord = allRecords.map(r => r.rawDate).reduce((a, b) => a >= b ? a : b);
-        const month = latestRecord.format("MMMM");
-        const year = latestRecord.format("YYYY");
-        const startDate = earliestRecord.format("MM/DD/YYYY");
-        const endDate = latestRecord.format("MM/DD/YYYY");
+        const month =format(latestRecord, 'MMMM')
+        const year = format(latestRecord, 'yyyy')
+        const startDate = format(earliestRecord, 'MM/dd/yyyy') 
+        const endDate = format(latestRecord, 'MM/dd/yyyy')
     
         const totalDeposits = deposits.map(r => r.Amount).reduce((a, b) => a + b);
         const totalExpenses = expenses.map(r => r.Amount).reduce((a, b) => a + b);
-        const startingBalance = bankRecords.find(r => r.Date === earliestRecord)["Posted Balance After Transaction"] + Math.abs(bankRecords.find(r => r.Date === earliestRecord)["Amount"]);
+        
+        const earliestBankRecord = bankRecords.map(r => r.Date).reduce((a, b) => a <= b ? a : b);
+        const startingBalance = bankRecords.find(r => r.Date === earliestBankRecord)["Posted Balance After Transaction"] + Math.abs(bankRecords.find(r => r.Date === earliestBankRecord)["Amount"]);
         const endingBalance = startingBalance + totalDeposits + totalExpenses;
         
         return {

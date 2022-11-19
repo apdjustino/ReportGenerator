@@ -120,7 +120,7 @@ export const writeReport = (data, o) => {
     const latinoExpenses = parseFloat(expenses.filter(d => d.Latino).map(d => d.Amount).reduce((a, b) => a + b, 0))
     const latinoBalance = latinoDeposits + latinoExpenses    
 
-    const hd29Deposits = deposits.filter(d => d.HD29).map(d => d.Amount).reduce((a, b) => a + b) + specialRecords[0]["HD 29"];
+    const hd29Deposits = deposits.filter(d => d.HD29).map(d => d.Amount).reduce((a, b) => a + b, 0) + specialRecords[0]["HD 29"];
     const h29Expenses = parseFloat(expenses.filter(d => d.HD29).map(d => d.Amount).reduce((a, b) => a + b, 0))
     const hd29Balance = hd29Deposits + h29Expenses;
 
